@@ -37,7 +37,6 @@ LUKS_NAME=cryptroot
 USERNAME=gorschu
 TIMEZONE=Europe/Berlin
 BTRFS_SIZE=20G
-ARCHZFS_KEY=3A9917BF0DED5C13F69AC68FABEC0A1208037BE9
 
 # --- Detect ZFS partition 9 ---
 if sgdisk -p "$DISK" 2>/dev/null | awk '{print $1}' | grep -qx '9'; then
@@ -116,9 +115,9 @@ mount "$(part "$DISK" 1)" /mnt/boot
 echo "Ranking Arch mirrors..."
 reflector --protocol https --sort rate --latest 20 --country Germany,Netherlands,Sweden,Finland,Denmark,Austria,Switzerland --save /etc/pacman.d/mirrorlist
 
-# --- Pacstrap base (no kernel — installed in chroot with archzfs) ---
+# --- Pacstrap ---
 pacstrap /mnt \
-  base base-devel linux-firmware \
+  base base-devel linux linux-headers linux-firmware \
   intel-ucode amd-ucode \
   cryptsetup btrfs-progs \
   dracut \
@@ -134,15 +133,6 @@ sed -i '/\/boot.*vfat/s/relatime/relatime,fmask=0077,dmask=0077/' /mnt/etc/fstab
 # --- Static configs (rootfs overlay) ---
 cp -r "$SCRIPT_DIR/rootfs/." /mnt/
 
-# --- archzfs repo (before [core] so kernel version is pinned) ---
-awk '/^\[core\]/ {
-    print "[archzfs]"
-    print "Server = https://github.com/archzfs/archzfs/releases/download/experimental"
-    print ""
-}
-{print}' /mnt/etc/pacman.conf >/mnt/etc/pacman.conf.tmp
-mv /mnt/etc/pacman.conf.tmp /mnt/etc/pacman.conf
-
 # --- LUKS UUID for boot entries ---
 LUKS_UUID=$(blkid -s UUID -o value "$(part "$DISK" 2)")
 
@@ -153,27 +143,6 @@ cat >/mnt/boot/loader/entries/arch.conf <<EOF
 title Arch Linux
 linux /vmlinuz-linux
 initrd /initramfs-linux.img
-options rd.luks.name=${LUKS_UUID}=${LUKS_NAME} root=/dev/mapper/${LUKS_NAME} rootflags=subvol=@ rw
-EOF
-
-cat >/mnt/boot/loader/entries/arch-fallback.conf <<EOF
-title Arch Linux (fallback)
-linux /vmlinuz-linux
-initrd /initramfs-linux-fallback.img
-options rd.luks.name=${LUKS_UUID}=${LUKS_NAME} root=/dev/mapper/${LUKS_NAME} rootflags=subvol=@ rw
-EOF
-
-cat >/mnt/boot/loader/entries/arch-lts.conf <<EOF
-title Arch Linux (LTS)
-linux /vmlinuz-linux-lts
-initrd /initramfs-linux-lts.img
-options rd.luks.name=${LUKS_UUID}=${LUKS_NAME} root=/dev/mapper/${LUKS_NAME} rootflags=subvol=@ rw
-EOF
-
-cat >/mnt/boot/loader/entries/arch-lts-fallback.conf <<EOF
-title Arch Linux (LTS fallback)
-linux /vmlinuz-linux-lts
-initrd /initramfs-linux-lts-fallback.img
 options rd.luks.name=${LUKS_UUID}=${LUKS_NAME} root=/dev/mapper/${LUKS_NAME} rootflags=subvol=@ rw
 EOF
 
@@ -225,14 +194,6 @@ echo "root:${ROOT_PASSWORD}" | chpasswd
 # Sudo
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 
-# archzfs key
-pacman-key --recv-keys ${ARCHZFS_KEY}
-pacman-key --lsign-key ${ARCHZFS_KEY}
-pacman -Sy
-
-# Kernel + ZFS (archzfs-linux pulls matched kernel + zfs modules)
-pacman -S --noconfirm archzfs-linux linux-headers archzfs-linux-lts linux-lts-headers
-
 # Bootloader
 bootctl install
 
@@ -243,10 +204,6 @@ systemctl enable sshd
 systemctl enable systemd-resolved
 systemctl enable systemd-timesyncd
 systemctl enable fstrim.timer
-systemctl enable zfs-import-cache.service
-systemctl enable zfs-import.target
-systemctl enable zfs-mount.service
-systemctl enable zfs.target
 CHROOT
 
 if [[ $? -ne 0 ]]; then
@@ -264,4 +221,6 @@ gum style --border rounded --padding "0 1" --border-foreground 2 \
   "" \
   "  umount -R /mnt" \
   "  cryptsetup close ${LUKS_NAME}" \
-  "  reboot"
+  "  reboot" \
+  "" \
+  "After reboot, run zfs-setup.sh to add ZFS support."

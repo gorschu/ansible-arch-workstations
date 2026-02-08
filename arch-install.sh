@@ -145,6 +145,9 @@ pacstrap /mnt \
 genfstab -U /mnt >>/mnt/etc/fstab
 sed -i '/\/boot.*vfat/s/relatime/relatime,fmask=0077,dmask=0077/' /mnt/etc/fstab
 
+# --- CachyOS pacman conf
+cp /etc/pacman.conf /mnt/etc/pacman.conf
+
 # --- Static configs (rootfs overlay) ---
 cp -r "$SCRIPT_DIR/rootfs/." /mnt/
 

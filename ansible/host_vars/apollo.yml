@@ -1,5 +1,6 @@
 ---
 kde_state: present
+gnome_state: absent
 hyprland_state: present
 
 networking_tailscale_state: absent

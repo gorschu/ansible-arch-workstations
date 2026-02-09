@@ -226,6 +226,9 @@ cachyos-rate-mirrors
 # Bootloader
 bootctl install
 
+# Regenerate initramfs (dracut ran during pacstrap before configs were in place)
+dracut --force --regenerate-all
+
 # Services
 systemctl enable iwd
 systemctl enable NetworkManager

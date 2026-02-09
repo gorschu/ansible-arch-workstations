@@ -28,7 +28,6 @@
       ansible.builtin.systemd_service:
         name: sddm.service
         enabled: false
-        state: stopped
       failed_when: false
 
     - name: Remove KDE applications

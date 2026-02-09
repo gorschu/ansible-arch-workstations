@@ -28,7 +28,6 @@
       ansible.builtin.systemd_service:
         name: gdm.service
         enabled: false
-        state: stopped
       failed_when: false
 
     - name: Remove GNOME applications

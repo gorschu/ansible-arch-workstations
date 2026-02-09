@@ -35,3 +35,12 @@ zfs_data_datasets:
     mode: "0700"
   - name: mail
     mode: "0700"
+
+# Nested/app-specific datasets (created after base datasets)
+zfs_app_datasets:
+  - name: general/atuin
+    mountpoint: "{{ primary_user_home }}/data/general/local/share/atuin"
+    mode: "0700"
+    properties:
+      recordsize: 4K
+      atime: "off"
